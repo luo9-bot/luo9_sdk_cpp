@@ -1,4 +1,5 @@
 #include "bus.h"
+#include <mutex>
 
 extern "C" {
     int luo9_bus_init();
