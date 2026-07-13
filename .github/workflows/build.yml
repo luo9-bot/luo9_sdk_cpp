@@ -22,10 +22,10 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/windows
-          cp include/*.h release/luo9_sdk_cpp/include/
-          cp build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/windows/
-          cd release && 7z a luo9_sdk_cpp-windows-mingw.zip luo9_sdk_cpp/
+          New-Item -ItemType Directory -Force -Path release/luo9_sdk_cpp/include, release/luo9_sdk_cpp/lib/windows
+          Copy-Item include/*.h release/luo9_sdk_cpp/include/
+          Copy-Item build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/windows/
+          Compress-Archive -Path release/luo9_sdk_cpp -DestinationPath release/luo9_sdk_cpp-windows-mingw.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -51,10 +51,10 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/windows
-          cp include/*.h release/luo9_sdk_cpp/include/
-          cp build/luo9_sdk_cpp.lib release/luo9_sdk_cpp/lib/windows/
-          cd release && 7z a luo9_sdk_cpp-windows-msvc.zip luo9_sdk_cpp/
+          New-Item -ItemType Directory -Force -Path release/luo9_sdk_cpp/include, release/luo9_sdk_cpp/lib/windows
+          Copy-Item include/*.h release/luo9_sdk_cpp/include/
+          Copy-Item build/luo9_sdk_cpp.lib release/luo9_sdk_cpp/lib/windows/
+          Compress-Archive -Path release/luo9_sdk_cpp -DestinationPath release/luo9_sdk_cpp-windows-msvc.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
