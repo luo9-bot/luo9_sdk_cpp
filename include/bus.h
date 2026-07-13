@@ -3,45 +3,41 @@
 
 #include <string>
 #include <vector>
-#include <functional>
-#include "head.h"
+#include <mutex>
+#include <unordered_map>
 
-extern "C" {
-    LUO9_API int luo9_bus_init();
-    LUO9_API int luo9_bus_subscribe(const char* topic);
-    LUO9_API int luo9_bus_publish(const char* topic, const char* payload);
-    LUO9_API char* luo9_bus_pop(const char* topic, int subscriber_id);
-    LUO9_API char* luo9_bus_wait_pop(const char* topic, int subscriber_id);
-    LUO9_API void luo9_bus_free_string(char* ptr);
-}
+namespace luo9 { namespace bus {
+
+struct PluginSubscribers {
+    int message_sub_id;
+    int meta_event_sub_id;
+    int notice_sub_id;
+    int request_sub_id;
+    int task_sub_id;
+    int send_sub_id;
+};
+
+const char SENTINEL[] = "__luo9_unsubscribed__";
 
 class Topic {
 public:
-    /// 订阅 topic，返回 subscriber_id（< 0 表示失败）
     int subscribe() const;
-
-    /// 发布消息到 topic
+    bool unsubscribe(int subscriber_id) const;
     bool publish(const std::string& payload) const;
-
-    /// 非阻塞取消息（队列为空返回空字符串）
+    bool publish_to(const std::string& payload, const std::vector<int>& subscriber_ids) const;
     std::string pop(int subscriber_id) const;
-
-    /// 阻塞取消息（挂起线程直到有消息）
     std::string wait_pop(int subscriber_id) const;
 
 private:
-    friend class Bus;
+    friend Topic topic(const std::string&);
     std::string name_;
-    explicit Topic(const std::string& name) : name_(name) {}
+    explicit Topic(const std::string& name);
 };
 
-class Bus {
-public:
-    /// 初始化总线
-    static bool init();
+bool init();
+Topic topic(const std::string& name);
+void init_subscribers(const PluginSubscribers* subscribers);
 
-    /// 获取 topic 引用
-    static Topic topic(const std::string& name);
-};
+}} // namespace luo9::bus
 
-#endif // __BUS_H__
+#endif

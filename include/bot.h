@@ -4,22 +4,12 @@
 #include <cstdint>
 #include <string>
 
-#include "head.h"
+namespace luo9 { namespace bot {
 
-extern "C" {
-    /// 获取核心版本信息
-    LUO9_API const char* luo9_version();
-}
+std::string get_version();
+void send_group_msg(uint64_t group_id, const std::string& msg);
+void send_private_msg(uint64_t user_id, const std::string& msg);
 
-namespace Bot {
-    /// 获取核心版本
-    std::string get_version();
+}} // namespace luo9::bot
 
-    /// 发送群消息（基于 bus 总线，fire-and-forget）
-    void send_group_msg(uint64_t group_id, const std::string& msg);
-
-    /// 发送私聊消息（基于 bus 总线，fire-and-forget）
-    void send_private_msg(uint64_t user_id, const std::string& msg);
-};
-
-#endif // __BOT_H__
+#endif

@@ -4,26 +4,18 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <optional>
+#include <unordered_map>
 
-#include "head.h"
+struct CommandHandle;
 
-extern "C" {
-    struct CommandHandle;
-    LUO9_API CommandHandle* luo9_command_create(const char* msg, const char* cmd_name, int mode, char prefix_char);
-    LUO9_API void luo9_command_free(CommandHandle* handle);
-    LUO9_API char* luo9_command_get_name(CommandHandle* handle);
-    LUO9_API char* luo9_command_get_args_raw(CommandHandle* handle);
-    LUO9_API int luo9_command_has_args(CommandHandle* handle);
-    LUO9_API int luo9_command_args_count(CommandHandle* handle);
-    LUO9_API char* luo9_command_get_arg(CommandHandle* handle, int index);
-    LUO9_API void luo9_free_string(char* ptr);
-}
+namespace luo9 { namespace command {
 
 class PrefixMode {
 public:
-    static PrefixMode Required(char c) { return {0, c}; }
-    static PrefixMode Optional(char c) { return {1, c}; }
-    static PrefixMode None() { return {2, 0}; }
+    static PrefixMode Required(char c) { return PrefixMode(0, c); }
+    static PrefixMode Optional(char c) { return PrefixMode(1, c); }
+    static PrefixMode None() { return PrefixMode(2, 0); }
 
     int mode() const { return mode_; }
     char prefix() const { return prefix_; }
@@ -42,8 +34,8 @@ public:
 
     ~Command();
 
-    Command(Command&&) = default;
-    Command& operator=(Command&&) = default;
+    Command(Command&& other);
+    Command& operator=(Command&& other);
 
     std::string name() const;
     std::string args_raw() const;
@@ -53,37 +45,41 @@ public:
     std::string arg_at(int i) const;
     std::vector<std::string> args() const;
 
-    /// 链式子命令匹配：如果 arg_at(0) == expected，执行回调
     CommandMatcher on(const std::string& expected, std::function<void(const std::vector<std::string>&)> f) &&;
     CommandMatcher on(const std::string& expected, std::function<void(const std::vector<std::string>&)> f) const &;
 
 private:
     friend class CommandMatcher;
     CommandHandle* handle_;
-    explicit Command(CommandHandle* h) : handle_(h) {}
-    Command(const Command&) = delete;
-    Command& operator=(const Command&) = delete;
+    explicit Command(CommandHandle* h);
+    Command(const Command&);
+    Command& operator=(const Command&);
 
-    /// 从指定索引开始的剩余参数
     std::vector<std::string> args_from_internal(int start) const;
 };
 
 class CommandMatcher {
 public:
-    CommandMatcher(CommandMatcher&&) = default;
-    CommandMatcher& operator=(CommandMatcher&&) = default;
+    CommandMatcher(CommandMatcher&& other);
+    CommandMatcher& operator=(CommandMatcher&& other);
 
-    /// 继续链式匹配（仅在未匹配时生效）
     CommandMatcher on(const std::string& expected, std::function<void(const std::vector<std::string>&)> f) &&;
 
-    /// 兜底处理（仅在未匹配时生效）
+    CommandMatcher on_pattern(const std::string& pattern,
+        std::function<void(const std::unordered_map<std::string, std::string>&,
+                           const std::vector<std::string>&)> f) &&;
+
     void otherwise(std::function<void()> f) &&;
 
 private:
     friend class Command;
     const Command& cmd_;
     bool matched_;
-    CommandMatcher(const Command& cmd, bool matched) : cmd_(cmd), matched_(matched) {}
+    CommandMatcher(const Command& cmd, bool matched);
 };
 
-#endif // __COMMAND_H__
+Command parse(const std::string& msg, const std::string& cmd_name, PrefixMode mode);
+
+}} // namespace luo9::command
+
+#endif

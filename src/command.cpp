@@ -1,14 +1,40 @@
 #include "command.h"
+#include "pattern.h"
 
-// ── Command ─────────────────────────────────────────────────────
+extern "C" {
+    struct CommandHandle;
+    CommandHandle* luo9_command_create(const char* msg, const char* cmd_name, int mode, char prefix_char);
+    void luo9_command_free(CommandHandle* handle);
+    char* luo9_command_get_name(CommandHandle* handle);
+    char* luo9_command_get_args_raw(CommandHandle* handle);
+    int luo9_command_has_args(CommandHandle* handle);
+    int luo9_command_args_count(CommandHandle* handle);
+    char* luo9_command_get_arg(CommandHandle* handle, int index);
+    void luo9_free_string(char* ptr);
+}
 
-Command Command::parse(const std::string& msg, const std::string& cmd_name, PrefixMode mode) {
-    auto handle = luo9_command_create(msg.c_str(), cmd_name.c_str(), mode.mode(), mode.prefix());
-    return Command(handle);
+namespace luo9 { namespace command {
+
+Command::Command(CommandHandle* h) : handle_(h) {}
+Command::Command(const Command&) : handle_(nullptr) {}
+Command::Command(Command&& other) : handle_(other.handle_) { other.handle_ = nullptr; }
+
+Command& Command::operator=(Command&& other) {
+    if (this != &other) {
+        if (handle_) luo9_command_free(handle_);
+        handle_ = other.handle_;
+        other.handle_ = nullptr;
+    }
+    return *this;
 }
 
 Command::~Command() {
     if (handle_) luo9_command_free(handle_);
+}
+
+Command Command::parse(const std::string& msg, const std::string& cmd_name, PrefixMode mode) {
+    CommandHandle* handle = luo9_command_create(msg.c_str(), cmd_name.c_str(), mode.mode(), mode.prefix());
+    return Command(handle);
 }
 
 std::string Command::name() const {
@@ -73,7 +99,13 @@ CommandMatcher Command::on(const std::string& expected, std::function<void(const
     return CommandMatcher(*this, false);
 }
 
-// ── CommandMatcher ──────────────────────────────────────────────
+CommandMatcher::CommandMatcher(const Command& cmd, bool matched) : cmd_(cmd), matched_(matched) {}
+CommandMatcher::CommandMatcher(CommandMatcher&& other) : cmd_(other.cmd_), matched_(other.matched_) {}
+
+CommandMatcher& CommandMatcher::operator=(CommandMatcher&& other) {
+    matched_ = other.matched_;
+    return *this;
+}
 
 CommandMatcher CommandMatcher::on(const std::string& expected, std::function<void(const std::vector<std::string>&)> f) && {
     if (!matched_) {
@@ -85,8 +117,30 @@ CommandMatcher CommandMatcher::on(const std::string& expected, std::function<voi
     return std::move(*this);
 }
 
+CommandMatcher CommandMatcher::on_pattern(const std::string& pattern_str,
+    std::function<void(const std::unordered_map<std::string, std::string>&,
+                       const std::vector<std::string>&)> f) && {
+    if (!matched_) {
+        if (cmd_.has_args()) {
+            luo9::pattern::Pattern pat(pattern_str);
+            auto caps = pat.match(cmd_.arg_at(0));
+            if (caps.has_value()) {
+                f(caps.value(), cmd_.args_from_internal(1));
+                matched_ = true;
+            }
+        }
+    }
+    return std::move(*this);
+}
+
 void CommandMatcher::otherwise(std::function<void()> f) && {
     if (!matched_) {
         f();
     }
 }
+
+Command parse(const std::string& msg, const std::string& cmd_name, PrefixMode mode) {
+    return Command::parse(msg, cmd_name, mode);
+}
+
+}} // namespace luo9::command

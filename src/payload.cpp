@@ -1,27 +1,14 @@
 #include "payload.h"
 #include <cstring>
 #include <cstdlib>
-#include <algorithm>
-
-// ── 最小化 JSON 解析工具 ────────────────────────────────────────
 
 namespace {
 
-// 跳过空白
 const char* skip_ws(const char* p) {
     while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') ++p;
     return p;
 }
 
-// 匹配字面量
-const char* expect(const char* p, const char* lit) {
-    p = skip_ws(p);
-    size_t len = strlen(lit);
-    if (strncmp(p, lit, len) == 0) return p + len;
-    return nullptr;
-}
-
-// 解析 JSON 字符串值（不含外层引号）
 std::string parse_string(const char*& p) {
     p = skip_ws(p);
     if (*p != '"') return "";
@@ -39,7 +26,6 @@ std::string parse_string(const char*& p) {
     return result;
 }
 
-// 解析 JSON 数值
 uint64_t parse_number(const char*& p) {
     p = skip_ws(p);
     uint64_t val = 0;
@@ -50,7 +36,21 @@ uint64_t parse_number(const char*& p) {
     return val;
 }
 
-// 解析 JSON 布尔
+int64_t parse_signed_number(const char*& p) {
+    p = skip_ws(p);
+    bool negative = false;
+    if (*p == '-') {
+        negative = true;
+        ++p;
+    }
+    int64_t val = 0;
+    while (*p >= '0' && *p <= '9') {
+        val = val * 10 + (*p - '0');
+        ++p;
+    }
+    return negative ? -val : val;
+}
+
 bool parse_bool(const char*& p) {
     p = skip_ws(p);
     if (strncmp(p, "true", 4) == 0) { p += 4; return true; }
@@ -58,13 +58,11 @@ bool parse_bool(const char*& p) {
     return false;
 }
 
-// 检查是否为 null
 bool is_null(const char* p) {
     p = skip_ws(p);
     return strncmp(p, "null", 4) == 0;
 }
 
-// 跳过一个 JSON 值（字符串、数字、对象、数组、true/false/null）
 const char* skip_value(const char* p) {
     p = skip_ws(p);
     if (*p == '"') {
@@ -103,13 +101,11 @@ const char* skip_value(const char* p) {
             }
         }
     } else {
-        // number / true / false / null
         while (*p && *p != ',' && *p != '}' && *p != ']' && *p != ' ') ++p;
     }
     return p;
 }
 
-// 在 JSON 对象中查找指定 key 的值位置
 const char* find_key(const char* json, const char* key) {
     size_t key_len = strlen(key);
     const char* p = json;
@@ -136,40 +132,49 @@ const char* find_key(const char* json, const char* key) {
     return nullptr;
 }
 
-// 解析子类型字符串
-SubType parse_sub_type(const std::string& s) {
-    if (s == "enable") return SubType::Enable;
-    if (s == "disable") return SubType::Disable;
-    if (s == "connect") return SubType::Connect;
-    if (s == "friend") return SubType::Friend;
-    if (s == "group") return SubType::GroupTemp;
-    if (s == "group_self") return SubType::GroupSelf;
-    if (s == "other") return SubType::Other;
-    if (s == "normal") return SubType::Normal;
-    if (s == "notice") return SubType::Notice;
-    if (s == "set") return SubType::Set;
-    if (s == "unset") return SubType::Unset;
-    if (s == "ban") return SubType::Ban;
-    if (s == "lift_ban") return SubType::LiftBan;
-    if (s == "leave") return SubType::Leave;
-    if (s == "kick") return SubType::Kick;
-    if (s == "kick_me") return SubType::KickMe;
-    if (s == "approve") return SubType::Approve;
-    if (s == "poke") return SubType::Poke;
-    if (s == "input_status") return SubType::InputStatus;
-    if (s == "title") return SubType::Title;
-    if (s == "profile_like") return SubType::ProfileLike;
-    if (s == "add") return SubType::Add;
-    if (s == "invite") return SubType::Invite;
-    return SubType::None;
+using namespace luo9::payload;
+
+NoticeType parse_notice_type(const std::string& s) {
+    if (s == "friend_add") return NoticeType::FriendAdd;
+    if (s == "friend_recall") return NoticeType::FriendRecall;
+    if (s == "group_admin") return NoticeType::GroupAdmin;
+    if (s == "group_ban") return NoticeType::GroupBan;
+    if (s == "group_increase") return NoticeType::GroupIncrease;
+    if (s == "group_decrease") return NoticeType::GroupDecrease;
+    if (s == "group_card") return NoticeType::GroupCard;
+    if (s == "group_recall") return NoticeType::GroupRecall;
+    if (s == "group_upload") return NoticeType::GroupUpload;
+    if (s == "group_title") return NoticeType::GroupTitle;
+    if (s == "honor") return NoticeType::Honor;
+    if (s == "essence") return NoticeType::Essence;
+    if (s == "poke") return NoticeType::Poke;
+    if (s == "lucky_king") return NoticeType::LuckyKing;
+    if (s == "group_msg_emoji_like") return NoticeType::GroupMsgEmojiLike;
+    if (s == "notify") return NoticeType::Notify;
+    return NoticeType::Unknown;
 }
 
-// ── 解析各类型 ──────────────────────────────────────────────────
+HonorType parse_honor_type(const std::string& s) {
+    if (s == "talkative") return HonorType::Talkative;
+    if (s == "performer") return HonorType::Performer;
+    if (s == "emotion") return HonorType::Emotion;
+    return HonorType::Unknown;
+}
+
+RequestType parse_request_type(const std::string& s) {
+    if (s == "friend") return RequestType::Friend;
+    if (s == "group") return RequestType::Group;
+    return RequestType::Unknown;
+}
+
+GroupRequestSubType parse_group_request_sub_type(const std::string& s) {
+    if (s == "add") return GroupRequestSubType::Add;
+    if (s == "invite") return GroupRequestSubType::Invite;
+    return GroupRequestSubType::Unknown;
+}
 
 MessagePayload parse_message(const char* obj) {
-    MessagePayload msg{};
-    msg.message_type = MsgType::Other;
-
+    MessagePayload msg;
     const char* v;
     if ((v = find_key(obj, "message_type"))) {
         std::string s = parse_string(v);
@@ -182,15 +187,59 @@ MessagePayload parse_message(const char* obj) {
         else msg.group_id = parse_number(v);
     }
     if ((v = find_key(obj, "message"))) msg.message = parse_string(v);
-
+    if ((v = find_key(obj, "time"))) msg.time = parse_number(v);
+    if ((v = find_key(obj, "self_id"))) msg.self_id = parse_number(v);
+    if ((v = find_key(obj, "message_id"))) msg.message_id = parse_number(v);
+    if ((v = find_key(obj, "message_seq"))) {
+        if (is_null(v)) msg.message_seq = std::nullopt;
+        else msg.message_seq = parse_number(v);
+    }
+    if ((v = find_key(obj, "real_id"))) {
+        if (is_null(v)) msg.real_id = std::nullopt;
+        else msg.real_id = parse_number(v);
+    }
+    if ((v = find_key(obj, "real_seq"))) {
+        if (is_null(v)) msg.real_seq = std::nullopt;
+        else msg.real_seq = parse_string(v);
+    }
+    if ((v = find_key(obj, "sub_type"))) msg.sub_type = parse_string(v);
+    if ((v = find_key(obj, "font"))) msg.font = static_cast<uint32_t>(parse_number(v));
+    if ((v = find_key(obj, "sender"))) {
+        if (is_null(v)) {
+            msg.sender = std::nullopt;
+        } else {
+            Sender s;
+            const char* sv;
+            if ((sv = find_key(v, "user_id"))) s.user_id = parse_number(sv);
+            if ((sv = find_key(v, "nickname"))) s.nickname = parse_string(sv);
+            if ((sv = find_key(v, "card"))) s.card = parse_string(sv);
+            if ((sv = find_key(v, "sex"))) s.sex = parse_string(sv);
+            if ((sv = find_key(v, "age"))) s.age = static_cast<uint32_t>(parse_number(sv));
+            if ((sv = find_key(v, "area"))) s.area = parse_string(sv);
+            if ((sv = find_key(v, "level"))) s.level = parse_string(sv);
+            if ((sv = find_key(v, "role"))) s.role = parse_string(sv);
+            if ((sv = find_key(v, "title"))) s.title = parse_string(sv);
+            msg.sender = s;
+        }
+    }
+    if ((v = find_key(obj, "anonymous"))) {
+        if (is_null(v)) {
+            msg.anonymous = std::nullopt;
+        } else {
+            Anonymous a;
+            const char* sv;
+            if ((sv = find_key(v, "id"))) a.id = parse_number(sv);
+            if ((sv = find_key(v, "name"))) a.name = parse_string(sv);
+            if ((sv = find_key(v, "flag"))) a.flag = parse_string(sv);
+            msg.anonymous = a;
+        }
+    }
+    if ((v = find_key(obj, "message_format"))) msg.message_format = parse_string(v);
     return msg;
 }
 
 MetaEventPayload parse_meta_event(const char* obj) {
-    MetaEventPayload ev{};
-    ev.meta_event_type = MetaEventType::Unknown;
-    ev.sub_type = SubType::None;
-
+    MetaEventPayload ev;
     const char* v;
     if ((v = find_key(obj, "meta_event_type"))) {
         std::string s = parse_string(v);
@@ -201,13 +250,13 @@ MetaEventPayload parse_meta_event(const char* obj) {
         if (is_null(v)) ev.interval = std::nullopt;
         else ev.interval = parse_number(v);
     }
-    if ((v = find_key(obj, "sub_type"))) ev.sub_type = parse_sub_type(parse_string(v));
+    if ((v = find_key(obj, "sub_type"))) ev.sub_type = parse_string(v);
     if ((v = find_key(obj, "self_id"))) ev.self_id = parse_number(v);
     if ((v = find_key(obj, "status"))) {
         if (is_null(v)) {
             ev.status = std::nullopt;
         } else {
-            Status s{};
+            Status s;
             const char* sv;
             if ((sv = find_key(v, "good"))) s.good = parse_bool(sv);
             if ((sv = find_key(v, "online"))) s.online = parse_bool(sv);
@@ -215,56 +264,110 @@ MetaEventPayload parse_meta_event(const char* obj) {
         }
     }
     if ((v = find_key(obj, "time"))) ev.time = parse_number(v);
-
     return ev;
 }
 
 NoticePayload parse_notice(const char* obj) {
-    NoticePayload n{};
-    n.notice_type = NoticeType::Unknown;
-    n.sub_type = SubType::None;
-
+    NoticePayload n;
     const char* v;
     if ((v = find_key(obj, "notice_type"))) {
-        std::string s = parse_string(v);
-        if (s == "friend_add") n.notice_type = NoticeType::FriendAdd;
-        else if (s == "friend_recall") n.notice_type = NoticeType::FriendRecall;
-        else if (s == "group_admin") n.notice_type = NoticeType::GroupAdmin;
-        else if (s == "group_ban") n.notice_type = NoticeType::GroupBan;
-        else if (s == "group_increase") n.notice_type = NoticeType::GroupIncrease;
-        else if (s == "group_decrease") n.notice_type = NoticeType::GroupDecrease;
-        else if (s == "group_card") n.notice_type = NoticeType::GroupCard;
-        else if (s == "group_recall") n.notice_type = NoticeType::GroupRecall;
-        else if (s == "group_upload") n.notice_type = NoticeType::GroupUpload;
-        else if (s == "essence") n.notice_type = NoticeType::Essence;
-        else if (s == "notify") n.notice_type = NoticeType::Notify;
+        n.notice_type = parse_notice_type(parse_string(v));
     }
-    if ((v = find_key(obj, "sub_type"))) n.sub_type = parse_sub_type(parse_string(v));
-    if ((v = find_key(obj, "status"))) n.status = parse_string(v);
+    if ((v = find_key(obj, "sub_type"))) n.sub_type = parse_string(v);
     if ((v = find_key(obj, "user_id"))) n.user_id = parse_number(v);
     if ((v = find_key(obj, "group_id"))) {
         if (is_null(v)) n.group_id = std::nullopt;
         else n.group_id = parse_number(v);
     }
     if ((v = find_key(obj, "time"))) n.time = parse_number(v);
-
+    if ((v = find_key(obj, "operator_id"))) {
+        if (is_null(v)) n.operator_id = std::nullopt;
+        else n.operator_id = parse_number(v);
+    }
+    if ((v = find_key(obj, "target_id"))) {
+        if (is_null(v)) n.target_id = std::nullopt;
+        else n.target_id = parse_number(v);
+    }
+    if ((v = find_key(obj, "message_id"))) {
+        if (is_null(v)) n.message_id = std::nullopt;
+        else n.message_id = parse_number(v);
+    }
+    if ((v = find_key(obj, "file"))) {
+        if (is_null(v)) {
+            n.file = std::nullopt;
+        } else {
+            FileInfo f;
+            const char* sv;
+            if ((sv = find_key(v, "id"))) f.id = parse_string(sv);
+            if ((sv = find_key(v, "name"))) f.name = parse_string(sv);
+            if ((sv = find_key(v, "size"))) f.size = parse_number(sv);
+            if ((sv = find_key(v, "busid"))) f.busid = parse_signed_number(sv);
+            n.file = f;
+        }
+    }
+    if ((v = find_key(obj, "duration"))) {
+        if (is_null(v)) n.duration = std::nullopt;
+        else n.duration = parse_number(v);
+    }
+    if ((v = find_key(obj, "card_new"))) {
+        if (is_null(v)) n.card_new = std::nullopt;
+        else n.card_new = parse_string(v);
+    }
+    if ((v = find_key(obj, "card_old"))) {
+        if (is_null(v)) n.card_old = std::nullopt;
+        else n.card_old = parse_string(v);
+    }
+    if ((v = find_key(obj, "honor_type"))) {
+        if (is_null(v)) n.honor_type = std::nullopt;
+        else n.honor_type = parse_honor_type(parse_string(v));
+    }
+    if ((v = find_key(obj, "title"))) {
+        if (is_null(v)) n.title = std::nullopt;
+        else n.title = parse_string(v);
+    }
+    if ((v = find_key(obj, "flag"))) {
+        if (is_null(v)) n.flag = std::nullopt;
+        else n.flag = parse_string(v);
+    }
+    if ((v = find_key(obj, "comment"))) {
+        if (is_null(v)) n.comment = std::nullopt;
+        else n.comment = parse_string(v);
+    }
     return n;
+}
+
+RequestPayload parse_request(const char* obj) {
+    RequestPayload r;
+    const char* v;
+    if ((v = find_key(obj, "request_type"))) {
+        r.request_type = parse_request_type(parse_string(v));
+    }
+    if ((v = find_key(obj, "user_id"))) r.user_id = parse_number(v);
+    if ((v = find_key(obj, "group_id"))) {
+        if (is_null(v)) r.group_id = std::nullopt;
+        else r.group_id = parse_number(v);
+    }
+    if ((v = find_key(obj, "comment"))) r.comment = parse_string(v);
+    if ((v = find_key(obj, "flag"))) r.flag = parse_string(v);
+    if ((v = find_key(obj, "sub_type"))) {
+        r.sub_type = parse_group_request_sub_type(parse_string(v));
+    }
+    if ((v = find_key(obj, "time"))) r.time = parse_number(v);
+    if ((v = find_key(obj, "self_id"))) r.self_id = parse_number(v);
+    return r;
 }
 
 } // anonymous namespace
 
-// ── BusPayload::parse ───────────────────────────────────────────
+namespace luo9 { namespace payload {
 
 BusPayload BusPayload::parse(const std::string& json) {
-    BusPayload result{};
-    result.type = PayloadType::Unknown;
-
+    BusPayload result;
     const char* p = json.c_str();
     p = skip_ws(p);
     if (*p != '{') return result;
     ++p;
 
-    // 外层只有一个 key: "Message" / "MetaEvent" / "Notice"
     p = skip_ws(p);
     if (*p != '"') return result;
     ++p;
@@ -285,7 +388,12 @@ BusPayload BusPayload::parse(const std::string& json) {
     } else if (outer_key == "Notice") {
         result.type = PayloadType::Notice;
         result.notice = parse_notice(p);
+    } else if (outer_key == "Request") {
+        result.type = PayloadType::Request;
+        result.request = parse_request(p);
     }
 
     return result;
 }
+
+}} // namespace luo9::payload

@@ -6,6 +6,9 @@
 #include "bot.h"
 #include "bus.h"
 #include "command.h"
+#include "message.h"
 #include "payload.h"
+#include "pattern.h"
+#include "version.h"
 
-#endif // __LUO9_SDK_H__
+#endif
