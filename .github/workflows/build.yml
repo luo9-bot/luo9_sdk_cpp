@@ -1,108 +1,90 @@
-name: Sync SDK to Plugin Example
+name: Build Static Libraries
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main ]
     paths:
       - 'include/**'
-      - 'lib/**'
-      - 'bot.cpp'
-      - 'command.cpp'
-  workflow_dispatch:  # 支持手动触发
+      - 'src/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  sync-to-example:
+  build-windows-mingw:
+    name: Windows (MinGW-w64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MinGW-w64
+        uses: niXman/mingw-builds-binaries-action@v1
+        with:
+          release: 14.2.0
+          arch: x86_64
+          threads: posix
+          exceptions: seh
+          rt: ucrt
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "MinGW Makefiles" -DCMAKE_CXX_COMPILER=${{ env.MINGW_ROOT }}/bin/g++.exe
+          cmake --build .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luo9_sdk_cpp-windows-mingw
+          path: |
+            build/libluo9_sdk_cpp.a
+            include/*.h
+
+  build-windows-msvc:
+    name: Windows (MSVC)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64
+          cmake --build . --config Release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luo9_sdk_cpp-windows-msvc
+          path: |
+            build/Release/luo9_sdk_cpp.lib
+            include/*.h
+
+  build-linux:
+    name: Linux
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout luo9_sdk_cpp
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++ cmake
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          repository: luo9-bot/luo9_sdk_cpp
-          token: ${{ secrets.BOT_SDK_DISTRIBUTION_TOKEN }}
-          path: sdk_cpp
-      
-      - name: Checkout plugin-cpp-example
-        uses: actions/checkout@v4
-        with:
-          repository: luo9-bot/plugin-cpp-example
-          token: ${{ secrets.BOT_SDK_DISTRIBUTION_TOKEN }}
-          path: plugin-example
-      
-      - name: Sync SDK files to plugin example
-        run: |
-          echo "=== Before sync ==="
-          ls -la plugin-example/sdk/ 2>/dev/null || echo "sdk dir not exist"
-          
-          # 确保目标目录存在
-          mkdir -p plugin-example/sdk
-          
-          # 使用 rsync 同步（GitHub Actions 环境自带 rsync）
-          rsync -av --delete \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='.gitignore' \
-            --exclude='.vscode' \
-            --exclude='*.md' \
-            sdk_cpp/ plugin-example/sdk/
-          
-          echo "=== After sync ==="
-          ls -la plugin-example/sdk/
-          echo ""
-          echo "=== SDK lib files ==="
-          ls -la plugin-example/sdk/lib/windows/ 2>/dev/null || echo "No windows lib"
-          ls -la plugin-example/sdk/lib/linux/ 2>/dev/null || echo "No linux lib"
-      
-      - name: Check for changes
-        id: check_changes
-        run: |
-          cd plugin-example
-          if [[ -n $(git status -s) ]]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected:"
-            git status -s
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected"
-          fi
-      
-      - name: Commit and push changes
-        if: steps.check_changes.outputs.has_changes == 'true'
-        run: |
-          cd plugin-example
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add sdk/
-          git commit -m "chore: sync SDK from luo9_sdk_cpp
-          - Source: luo9-bot/luo9_sdk_cpp@${{ github.sha }}
-          - Update timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          git push
-          
-          echo "✅ Synced to plugin-cpp-example successfully!"
-      
-      - name: Sync summary
-        if: always()
-        run: |
-          echo "=========================================="
-          if [ "${{ steps.check_changes.outputs.has_changes }}" = "true" ]; then
-            echo "✅ SDK sync completed and pushed!"
-          else
-            echo "ℹ️ No changes detected, nothing to sync"
-          fi
-          echo "📦 Source: luo9-bot/luo9_sdk_cpp"
-          echo "🎯 Target: luo9-bot/plugin-cpp-example/sdk"
-          echo "🕐 Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "=========================================="
-      
-      - name: Handle sync failure
-        if: failure()
-        run: |
-          echo "=========================================="
-          echo "❌ SDK sync failed!"
-          echo "Please check:"
-          echo "  1. Token permissions (needs repo scope)"
-          echo "  2. Target repository exists"
-          echo "  3. Network connectivity"
-          echo "=========================================="
-          exit 1
+          name: luo9_sdk_cpp-linux
+          path: |
+            build/libluo9_sdk_cpp.a
+            include/*.h
