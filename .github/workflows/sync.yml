@@ -102,10 +102,15 @@ jobs:
           # Copy headers
           cp -f sdk_cpp/include/*.h plugin-example/sdk/include/
 
-          # Copy libs from artifacts
+          # Copy SDK libs from artifacts
           cp -f sdk_libs/windows-mingw-lib/libluo9_sdk_cpp.a plugin-example/sdk/lib/windows/libluo9_sdk_cpp_mingw.a
           cp -f sdk_libs/windows-msvc-lib/luo9_sdk_cpp.lib plugin-example/sdk/lib/windows/luo9_sdk_cpp.lib
           cp -f sdk_libs/linux-lib/libluo9_sdk_cpp.a plugin-example/sdk/lib/linux/libluo9_sdk_cpp.a
+
+          # Copy core libs from source
+          cp -f sdk_cpp/lib/windows/luo9_core.lib plugin-example/sdk/lib/windows/
+          cp -f sdk_cpp/lib/windows/luo9_core.dll plugin-example/sdk/lib/windows/
+          cp -f sdk_cpp/lib/linux/libluo9_core.so plugin-example/sdk/lib/linux/
 
           echo "=== After sync ==="
           ls -la plugin-example/sdk/
