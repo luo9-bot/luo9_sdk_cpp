@@ -1,0 +1,90 @@
+# luo9_sdk_cpp Build Instructions
+
+## Prerequisites
+
+### Windows (MinGW-w64)
+- Download posix thread model MinGW-w64 from: https://github.com/niXman/mingw-builds-binaries/releases
+- Choose: x86_64-*-posix-seh-ucrt version
+- Extract to G:\mingw64-posix (or your preferred location)
+
+### Windows (MSVC)
+- Visual Studio 2019/2022 with C++ workload
+- Or Build Tools for Visual Studio
+
+### Linux
+- GCC or Clang with C++17 support
+- pthread library
+
+## Build Commands
+
+### Windows + MinGW-w64 (Recommended)
+```bash
+mkdir build && cd build
+cmake .. -G "MinGW Makefiles" -DCMAKE_CXX_COMPILER="G:/mingw64-posix/bin/g++.exe"
+cmake --build .
+```
+
+### Windows + MSVC (Visual Studio)
+```bash
+mkdir build && cd build
+cmake .. -G "Visual Studio 16 2019" -A x64
+cmake --build . --config Release
+```
+
+### Linux
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+```
+
+## Output Files
+
+- Windows (MinGW): `build/libluo9_sdk_cpp.a`
+- Windows (MSVC): `build/Release/luo9_sdk_cpp.lib`
+- Linux: `build/libluo9_sdk_cpp.a`
+
+## Install (Optional)
+
+```bash
+cmake --install . --prefix /path/to/install
+```
+
+This will install:
+- Headers to `<prefix>/include/`
+- Library to `<prefix>/lib/`
+
+## GitHub Actions
+
+Push to main branch will trigger automatic builds for:
+- Windows (MinGW-w64) -> `libluo9_sdk_cpp.a`
+- Windows (MSVC) -> `luo9_sdk_cpp.lib`
+- Linux -> `libluo9_sdk_cpp.a`
+
+Download artifacts from GitHub Actions page.
+
+## Usage in Your Project
+
+### CMake
+```cmake
+find_package(luo9_sdk_cpp REQUIRED)
+target_link_libraries(your_target PRIVATE luo9_sdk_cpp)
+```
+
+### Manual
+```bash
+g++ -I/path/to/include your_plugin.cpp -L/path/to/lib -lluo9_sdk_cpp -o your_plugin
+```
+
+## Namespace Structure
+
+```
+luo9::
+├── bus::       # Message bus (init, topic, subscribe, publish)
+├── bot::       # Bot operations (get_version, send_group_msg, send_private_msg)
+├── command::   # Command parsing (parse, on, on_pattern)
+├── payload::   # Payload parsing (Message, MetaEvent, Notice, Request)
+├── message::   # Message builder (txt, at, image, endl)
+├── pattern::   # Pattern matching ({variable})
+└── version::   # Version query protocol
+```
