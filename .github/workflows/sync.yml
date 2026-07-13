@@ -1,13 +1,7 @@
-name: Build Static Libraries
+name: Sync SDK Manual
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - master
-    tags:
-      - 'v*'
 
 jobs:
   build-windows-mingw:
@@ -23,20 +17,7 @@ jobs:
           cmake .. -G "MinGW Makefiles"
           cmake --build .
 
-      - name: Package
-        run: |
-          New-Item -ItemType Directory -Force -Path release/luo9_sdk_cpp/include, release/luo9_sdk_cpp/lib/windows
-          Copy-Item include/*.h release/luo9_sdk_cpp/include/
-          Copy-Item build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/windows/
-          Compress-Archive -Path release/luo9_sdk_cpp -DestinationPath release/luo9_sdk_cpp-windows-mingw.zip
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: luo9_sdk_cpp-windows-mingw
-          path: release/luo9_sdk_cpp-windows-mingw.zip
-
-      - name: Upload lib for sync
+      - name: Upload lib
         uses: actions/upload-artifact@v4
         with:
           name: windows-mingw-lib
@@ -58,20 +39,7 @@ jobs:
           cmake .. -G Ninja
           cmake --build .
 
-      - name: Package
-        run: |
-          New-Item -ItemType Directory -Force -Path release/luo9_sdk_cpp/include, release/luo9_sdk_cpp/lib/windows
-          Copy-Item include/*.h release/luo9_sdk_cpp/include/
-          Copy-Item build/luo9_sdk_cpp.lib release/luo9_sdk_cpp/lib/windows/
-          Compress-Archive -Path release/luo9_sdk_cpp -DestinationPath release/luo9_sdk_cpp-windows-msvc.zip
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: luo9_sdk_cpp-windows-msvc
-          path: release/luo9_sdk_cpp-windows-msvc.zip
-
-      - name: Upload lib for sync
+      - name: Upload lib
         uses: actions/upload-artifact@v4
         with:
           name: windows-msvc-lib
@@ -93,50 +61,16 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
 
-      - name: Package
-        run: |
-          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/linux
-          cp include/*.h release/luo9_sdk_cpp/include/
-          cp build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/linux/
-          cd release && zip -r luo9_sdk_cpp-linux.zip luo9_sdk_cpp/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: luo9_sdk_cpp-linux
-          path: release/luo9_sdk_cpp-linux.zip
-
-      - name: Upload lib for sync
+      - name: Upload lib
         uses: actions/upload-artifact@v4
         with:
           name: linux-lib
           path: build/libluo9_sdk_cpp.a
 
-  release:
-    name: Create Release
-    needs: [build-windows-mingw, build-windows-msvc, build-linux]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*.zip
-          generate_release_notes: true
-          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'pre') }}
-
   sync:
     name: Sync SDK to Plugin Example
     needs: [build-windows-mingw, build-windows-msvc, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'beta') && !contains(github.ref, 'alpha') && !contains(github.ref, 'pre')
     steps:
       - name: Checkout luo9_sdk_cpp
         uses: actions/checkout@v4
