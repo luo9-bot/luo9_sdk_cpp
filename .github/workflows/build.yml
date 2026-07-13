@@ -3,13 +3,8 @@ name: Build Static Libraries
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    paths:
-      - 'include/**'
-      - 'src/**'
-      - 'CMakeLists.txt'
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*'
 
 jobs:
   build-windows-mingw:
@@ -25,13 +20,18 @@ jobs:
           cmake .. -G "MinGW Makefiles"
           cmake --build .
 
+      - name: Package
+        run: |
+          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/windows
+          cp include/*.h release/luo9_sdk_cpp/include/
+          cp build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/windows/
+          cd release && 7z a luo9_sdk_cpp-windows-mingw.zip luo9_sdk_cpp/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: luo9_sdk_cpp-windows-mingw
-          path: |
-            build/libluo9_sdk_cpp.a
-            include/*.h
+          path: release/luo9_sdk_cpp-windows-mingw.zip
 
   build-windows-msvc:
     name: Windows (MSVC)
@@ -49,13 +49,18 @@ jobs:
           cmake .. -G Ninja
           cmake --build .
 
+      - name: Package
+        run: |
+          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/windows
+          cp include/*.h release/luo9_sdk_cpp/include/
+          cp build/luo9_sdk_cpp.lib release/luo9_sdk_cpp/lib/windows/
+          cd release && 7z a luo9_sdk_cpp-windows-msvc.zip luo9_sdk_cpp/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: luo9_sdk_cpp-windows-msvc
-          path: |
-            build/luo9_sdk_cpp.lib
-            include/*.h
+          path: release/luo9_sdk_cpp-windows-msvc.zip
 
   build-linux:
     name: Linux
@@ -73,10 +78,35 @@ jobs:
           cmake .. -DCMAKE_BUILD_TYPE=Release
           make -j$(nproc)
 
+      - name: Package
+        run: |
+          mkdir -p release/luo9_sdk_cpp/include release/luo9_sdk_cpp/lib/linux
+          cp include/*.h release/luo9_sdk_cpp/include/
+          cp build/libluo9_sdk_cpp.a release/luo9_sdk_cpp/lib/linux/
+          cd release && zip -r luo9_sdk_cpp-linux.zip luo9_sdk_cpp/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: luo9_sdk_cpp-linux
-          path: |
-            build/libluo9_sdk_cpp.a
-            include/*.h
+          path: release/luo9_sdk_cpp-linux.zip
+
+  release:
+    name: Create Release
+    needs: [build-windows-mingw, build-windows-msvc, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'pre') }}
