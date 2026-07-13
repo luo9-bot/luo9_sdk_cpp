@@ -21,6 +21,7 @@ jobs:
         uses: egor-tensin/setup-mingw@v2
         with:
           platform: x64
+          cc: '1'
 
       - name: Build
         run: |
@@ -50,7 +51,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -G "NMake Makefiles"
+          cmake .. -G Ninja
           cmake --build .
 
       - name: Upload artifact
