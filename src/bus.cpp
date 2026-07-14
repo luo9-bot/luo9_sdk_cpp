@@ -91,3 +91,8 @@ void init_subscribers(const PluginSubscribers* subscribers) {
 }
 
 }} // namespace luo9::bus
+
+// Export luo9_init_subscribers for host to call
+extern "C" void luo9_init_subscribers(const luo9::bus::PluginSubscribers* subscribers) {
+    luo9::bus::init_subscribers(subscribers);
+}

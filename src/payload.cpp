@@ -209,6 +209,8 @@ MessagePayload parse_message(const char* obj) {
             msg.sender = std::nullopt;
         } else {
             Sender s;
+            // Skip '{' for nested object
+            if (*v == '{') ++v;
             const char* sv;
             if ((sv = find_key(v, "user_id"))) s.user_id = parse_number(sv);
             if ((sv = find_key(v, "nickname"))) s.nickname = parse_string(sv);
@@ -227,6 +229,8 @@ MessagePayload parse_message(const char* obj) {
             msg.anonymous = std::nullopt;
         } else {
             Anonymous a;
+            // Skip '{' for nested object
+            if (*v == '{') ++v;
             const char* sv;
             if ((sv = find_key(v, "id"))) a.id = parse_number(sv);
             if ((sv = find_key(v, "name"))) a.name = parse_string(sv);
@@ -257,6 +261,8 @@ MetaEventPayload parse_meta_event(const char* obj) {
             ev.status = std::nullopt;
         } else {
             Status s;
+            // Skip '{' for nested object
+            if (*v == '{') ++v;
             const char* sv;
             if ((sv = find_key(v, "good"))) s.good = parse_bool(sv);
             if ((sv = find_key(v, "online"))) s.online = parse_bool(sv);
@@ -297,6 +303,8 @@ NoticePayload parse_notice(const char* obj) {
             n.file = std::nullopt;
         } else {
             FileInfo f;
+            // Skip '{' for nested object
+            if (*v == '{') ++v;
             const char* sv;
             if ((sv = find_key(v, "id"))) f.id = parse_string(sv);
             if ((sv = find_key(v, "name"))) f.name = parse_string(sv);
@@ -378,6 +386,9 @@ BusPayload BusPayload::parse(const std::string& json) {
     p = skip_ws(p);
     if (*p == ':') ++p;
     p = skip_ws(p);
+
+    // Now p should point to '{' of the inner object, skip it
+    if (*p == '{') ++p;
 
     if (outer_key == "Message") {
         result.type = PayloadType::Message;

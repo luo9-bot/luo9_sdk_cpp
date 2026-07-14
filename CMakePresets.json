@@ -1,0 +1,25 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "mingw-posix",
+            "displayName": "MinGW-w64 (posix)",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "G:/mingw64-posix/bin/g++.exe",
+                "CMAKE_C_COMPILER": "G:/mingw64-posix/bin/gcc.exe"
+            }
+        },
+        {
+            "name": "msvc",
+            "displayName": "MSVC",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "binaryDir": "${sourceDir}/build"
+        }
+    ]
+}
